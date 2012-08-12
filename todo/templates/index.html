@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block "content" %}
+<h1>All Todo Lists</h1>
+<!-- TODO: Not ideal, but hardcoding the admin URL -->
+<p><a class="btn btn-success" href="/admin/todo/list/add/"><i class="icon-plus-sign icon-white"></i> Add a Todo List</a></p>
+<ul>
+{% for list in lists %}
+<li><a href="{{ list.get_absolute_url }}">{{ list }}</a></li>
+{% endfor %}
+</ul>
+  
+{% endblock %}

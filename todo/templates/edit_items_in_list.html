@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block "content" %}
+  <h1>{{ list }} <small>Todo List</small></h1>
+  <form style="margin-top: 16px;" action="" method="POST">{% csrf_token %}
+    
+    <!--<h2>Todo Items</h2>-->
+    {{ formset.management_form }}
+    {% for form in formset.forms %}
+    <div class="item well">
+      {{ form.as_p }}
+      <p><a class="delete btn btn-danger" href="#"><i class="icon-trash icon-white"></i> Delete</a></p>
+    </div>
+    {% endfor %}
+
+    <p><a id="add-new-item" class="btn btn-success" href="#"><i class="icon-plus-sign icon-white"></i> Add another item</a></p>
+
+    <div class="form-actions">
+    <input class="btn btn-primary" id="submit" type="submit" value=" Save " />
+    </div>
+  </form>
+  
+  {# Ensure that the CSS class given here match the one above #}
+  {# Otherwise newly added items might not look right #}
+  <!-- This div should be hidden by default -->
+  <div id="origin-item" class="item well hide">
+  	{{ origin_item.as_p }}
+  </div>
+  
+  
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<script type="text/javascript" src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+
+var prefix = '{{ formset.prefix }}';
+//var prefix = '__prefix__';
+var MAX_FORMS = '{{ formset.max_num }}';
+var MIN_FORMS = 1;
+
+/*
+ * Perform any enhancements you'd like to a given item here
+ * e.g. add datepicker widgets, popovers etc.
+ */
+function enhanceItem(item) {    
+	$('.btn.delete', item).popover({
+	        offset: 10
+	});
+}
+
+function enhanceItems() {       
+        $('.item').each(function() {
+                enhanceItem(this);
+        });
+}
+
+/*
+ * The opposite of enhanceItem()
+ */
+function diminishItem(item) {   
+        $('.btn.delete', item).unbind();
+}
+
+function diminishItems() {      
+        $('.item').each(function() {
+                diminishItem(this);
+        });
+}
+
+
+$(document).ready(function() {
+        enhanceItems();
+});
+
+
+function getFormCount() {
+	return parseInt($('#id_' + prefix + '-TOTAL_FORMS').val());
+}
+
+function updateFormCount(newValue) {
+	$('#id_' + prefix + '-TOTAL_FORMS').val(newValue);
+}
+
+
+/*
+ * ====================================================
+ * General Notes: 'Form' and 'Item' are used somewhat interchangeably.
+ * ====================================================
+ */
+
+
+/*
+ * Function courtesy of from Mike Alsup. See:
+ * http://www.learningjquery.com/2007/08/clearing-form-data
+ */
+$.fn.clearForm = function() {
+  return this.each(function() {
+    var type = this.type, tag = this.tagName.toLowerCase();
+    if (tag == 'form')
+      return $(':input',this).clearForm();
+    if (type == 'text' || type == 'password' || tag == 'textarea')
+      this.value = '';
+    else if (type == 'checkbox' || type == 'radio')
+      this.checked = false;
+    else if (tag == 'select')
+      this.selectedIndex = -1;
+  });
+};
+
+
+
+
+/*
+ * Given an element, this function replaces a given string/regex
+ * with another specified replacement (new_value) within the element
+ */
+function updateElement(el, target_regex, replacement) {
+        var id_regex = target_regex;
+        
+        if ($(el).attr("for")) {
+                $(el).attr("for", $(el).attr("for").replace(id_regex, replacement));
+        }
+        if (el.id) {
+                el.id = el.id.replace(id_regex, replacement);
+                
+                // Update the value of the hidden ID
+                // This hidden ID represents the ID of the model instance
+                var hidden_ID_patt = new RegExp('id_(' + prefix + '-\\d+)-id');
+                // Only update if an ID exists (i.e. if a corresponding model instance exists)
+                if (hidden_ID_patt.test(el.id)) {
+                    $(el).val(new_value + 1);
+                }
+        }
+        if (el.name) {
+                el.name = el.name.replace(id_regex, replacement);
+        }
+}
+
+/*
+ * Given an element, this function replaces (the first?) occurence of a number
+ * that follows a specific prefix (e.g. 'exampleprefix-n')
+ * with another specified number (new_value) within the element
+ * where n is a number
+ */
+ /*
+function updateElementIndexOLD(el, prefix, new_value) {
+        var id_regex = new RegExp('(' + prefix + '-\\d+-)');
+        var replacement = prefix + '-' + new_value + '-';
+        
+        if ($(el).attr("for")) {
+                $(el).attr("for", $(el).attr("for").replace(id_regex, replacement));
+        }
+        if (el.id) {
+                el.id = el.id.replace(id_regex, replacement);
+                
+                // Update the value of the hidden ID
+                var hidden_ID_patt = new RegExp('id_(' + prefix + '-\\d+)-id');
+                if (hidden_ID_patt.test(el.id)) {
+                    $(el).val(new_value + 1);
+                }
+        }
+        if (el.name) {
+                el.name = el.name.replace(id_regex, replacement);
+        }
+}
+*/
+
+
+/*
+ * Given an element, this function replaces (the first?) occurence of a number
+ * that follows a specific prefix (e.g. 'exampleprefix-n')
+ * with another specified number (new_value) within the element
+ * where n is a number
+ */
+function updateElementIndex(el, prefix, new_value) {
+        var id_regex = new RegExp('(' + prefix + '-\\d+-)');
+        var replacement = prefix + '-' + new_value + '-';
+        
+        updateElement(this, id_regex, replacement);
+}
+
+
+
+function reapplyEnhancements() {
+	// Apply some fresh enhancements 
+	diminishItems();
+	enhanceItems();
+}
+
+
+
+/*
+ * btn = the button (or link or some source object) that instigated this action
+ * prefix = the prefix used in the formset (?)
+ */
+function addItem(btn, prefix) {
+        var formCount = getFormCount();
+        
+        // You might like/want to do some validation before proceeding in this function
+        // i.e. before adding an item
+        // In this case, I'm limiting it to max number of forms
+        if (formCount < MAX_FORMS) {
+	        // Clone a item (without event handlers) from the first item
+	        //var item = $(".item:first").clone(false).get(0);
+	        // Clone the origin item
+	        var item = $("#origin-item").clone(false).get(0);
+	        $(item).removeAttr("id");
+	        $(item).removeClass("hide");
+	        // Clear its values
+	        $(':input', item).clearForm();
+	        
+	        // Insert it after the last item
+	        // Feel free to use animations and effects as desired
+	        $(item).removeAttr('id').hide().insertAfter("form .item:last").slideDown(300);
+	        
+	        $(':input, label', item).each(function() {
+	                // Relabel/rename all the relevant bits
+	                // '__prefix__' comes from #origin-item
+	                // see 'empty_form': https://docs.djangoproject.com/en/1.4/topics/forms/formsets/#empty-form
+	                var target_regex = new RegExp('(' + prefix + '-__prefix__-)');
+	                var replacement = prefix + '-' + formCount + '-';
+	                updateElement(this, target_regex, replacement);
+	                // Remove error classes
+	                $(this).removeClass("error");
+	        });
+	        
+	        reapplyEnhancements();
+	        
+	        // Update the total form count (in the management form)
+	        updateFormCount(formCount + 1);
+	        
+        }
+        else {
+        	// Feel free to notify the user using some other technique instead of an JS alert
+        	alert("Sorry, you can only have a maximum of " + MAX_FORMS + " goals.");
+        }
+}
+
+
+/*
+ * Relabel all items
+ */
+function relabelItems() {
+	var forms = $('.item'); // Get all the forms
+	
+	// Update the total number of forms (likely 1 less than before)
+    $('#id_' + prefix + '-TOTAL_FORMS').val(forms.length);
+    
+    var i = 0;
+	// Go through the forms and set their indices, names and IDs
+	for (formCount = forms.length; i < formCount; i++) {
+		$(":input, label", forms.get(i)).each(function() {
+			updateElementIndex(this, prefix, i);
+		});
+	}
+}
+
+
+/*
+ * Removes an item from a list of items
+ */
+function removeItem(btn, prefix) {
+        var formCount = getFormCount();
+        
+        // Do some validation before proceeding
+        // In this case, just make sure there is at least one item
+        if (formCount > MIN_FORMS) {
+	        var item = $(btn).parents('.item');
+	        
+	        // Delete the item
+	        $("*", item).fadeOut();
+	        $(item).animate({'backgroundColor':'#fb6c6c'}, 300).slideUp('slow', function() { 
+	                $(item).remove(); 
+	                relabelItems(); 
+	        });
+	        
+	        // Apply enhancements
+	        enhanceItems();
+        }
+        else {
+        	// Feel free to notify the user using some other technique instead of an JS alert
+        	alert("Come on now, you need to have at least a minimum of " + MIN_FORMS + " item(s).");
+        }
+}
+
+
+// JavaScript to create a new items/entries
+$(document).ready(function() {
+        $('#add-new-item').click(function(e) {
+                addItem(this, prefix);
+                return false;
+        });
+        
+        $('a.delete').live("click", function(e) {
+                removeItem(this, prefix);
+                return false;
+        });
+});
+
+</script>
+
+  
+  
+  
+{% endblock %}
